@@ -1,3 +1,5 @@
+/build
+/dist
 /.cache
 /cov_exclude.egg-info/
 __pycache__

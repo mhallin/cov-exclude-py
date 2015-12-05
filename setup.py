@@ -17,13 +17,20 @@ def read_version():
 setup(
     name='cov-exclude',
     version=read_version(),
+    description='Pytest plugin for excluding tests based on coverage data',
 
     author='Magnus Hallin',
     author_email='mhallin@fastmail.com',
 
+    url='https://github.com/mhallin/cov-exclude-py',
+
     license='MIT',
 
-    packages=find_packages(exclude=['deps']),
+    packages=find_packages(exclude=['tests']),
+
+    package_data={
+        '': ['LICENSE', '*.rst'],
+    },
 
     entry_points={
         'pytest11': [
