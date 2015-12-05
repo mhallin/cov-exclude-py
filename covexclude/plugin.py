@@ -62,14 +62,43 @@ class CoverageExclusionPlugin:
             data = self.current_cov.get_data()
             self.current_cov = None
 
+            indices = []
+
+            non_measured_lines = {}
+            for filename in data.measured_files():
+                filename_index = self.line_cache.filename_index(filename)
+                lines = [i - 1 for i in list(sorted(data.lines(filename)))]
+                actual_lines = []
+
+                next_end = None
+                for start in lines:
+                    if next_end is not None and start >= next_end:
+                        next_end = None
+
+                    if next_end is None:
+                        key, record = self.line_cache.match_record(
+                            filename_index, start)
+
+                        if record is not None:
+                            indices.append(key)
+                            _, _, next_end, _ = record
+                        else:
+                            actual_lines.append(start)
+
+                    else:
+                        if start >= next_end:
+                            actual_lines.append(start)
+                            next_end = None
+
+                non_measured_lines[filename] = actual_lines
+
             test_lines = {
                 filename: self._get_lines_in_file(
                     filename,
-                    [i - 1 for i in data.lines(filename)])
-                for filename in data.measured_files()
+                    lines)
+                for filename, lines in non_measured_lines.items()
+                if lines
             }
-
-            indices = []
 
             for filename, ranges in test_lines.items():
                 filename_index = self.line_cache.filename_index(filename)

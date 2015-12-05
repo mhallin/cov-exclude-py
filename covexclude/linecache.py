@@ -15,7 +15,7 @@ class LineCache:
         # [(filename_index, start, end, md5(content))]
         self.recorded_ranges = []
 
-        # (filename, start, end) => index
+        # (filename, start) => index
         self.range_indices = {}
 
         if initial_data:
@@ -26,26 +26,36 @@ class LineCache:
                 self.filename_indices[f] = i
 
             for i, (n, s, e, _) in enumerate(self.recorded_ranges):
-                self.range_indices[n, s, e] = i
+                self.range_indices[n, s] = i
 
     def save_record(self, filename_index, start, end, content):
         hashed_content = hash(content)
 
-        t = (filename_index, start, end)
+        t = (filename_index, start)
 
         if t not in self.range_indices:
             i = len(self.range_indices)
-            self.recorded_ranges.append(t + (hashed_content, ))
+            self.recorded_ranges.append(t + (end, hashed_content, ))
             self.range_indices[t] = i
         else:
-            _, _, _, expected = self.recorded_ranges[self.range_indices[t]]
+            i = self.range_indices[t]
+            _, _, saved_end, saved_content = self.recorded_ranges[i]
 
-            assert expected == hashed_content
+            assert saved_end == end
+            assert saved_content == hashed_content
 
         return self.range_indices[t]
 
     def lookup(self, key):
         return self.recorded_ranges[key]
+
+    def match_record(self, filename_index, start):
+        i = self.range_indices.get((filename_index, start))
+
+        if i is None:
+            return None, None
+
+        return i, self.recorded_ranges[i]
 
     def filename_index(self, filename):
         if filename not in self.filename_indices:
