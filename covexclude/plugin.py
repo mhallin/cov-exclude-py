@@ -84,11 +84,24 @@ class CoverageExclusionPlugin:
     def _get_lines_in_file(self, filename, line_numbers):
         lines = []
         line_numbers = frozenset(line_numbers)
+        added_previous_line = False
 
         with open(filename, 'r') as f:
             for i, l in enumerate(f):
                 if i + 1 in line_numbers:
                     lines.append((i + 1, l))
+                    added_previous_line = True
+
+                elif added_previous_line and l.strip() == '':
+                    lines.append((i + 1, l))
+                    added_previous_line = True
+
+                else:
+                    added_previous_line = False
+
+            # Add EOF marker
+            if added_previous_line:
+                lines.append((i + 1, ''))
 
         return lines
 
@@ -106,11 +119,10 @@ class CoverageExclusionPlugin:
             new_line_data = self._get_lines_in_file(filename, line_numbers)
 
             if len(old_line_data) != len(new_line_data):
-
                 return True
 
             for (i1, l1), (i2, l2) in zip(old_line_data, new_line_data):
-                if l1 != l2:
+                if i1 != i2 or l1 != l2:
                     return True
 
         return False
