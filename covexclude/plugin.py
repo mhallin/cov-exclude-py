@@ -6,7 +6,7 @@ from . import linecache
 
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 CACHE_RECORDED_LINES_KEY = 'recorded_lines'
 CACHE_FAILED_TESTS = 'failed_tests'
 CACHE_FILE_HASHES = 'file_hashes'
@@ -72,10 +72,11 @@ class CoverageExclusionPlugin:
             indices = []
 
             for filename, ranges in test_lines.items():
+                filename_index = self.line_cache.filename_index(filename)
                 for start, end, content in ranges:
                     indices.append(
                         self.line_cache.save_record(
-                            filename, start, end, content))
+                            filename_index, start, end, content))
 
             assert item.nodeid not in self.recorded_lines
             self.recorded_lines[item.nodeid] = indices
@@ -88,6 +89,10 @@ class CoverageExclusionPlugin:
         line_data = {}
         line_data.update(self.previously_recorded_lines)
         line_data.update(self.recorded_lines)
+
+        for filename in self.line_cache.filenames:
+            if filename not in self.file_hashes:
+                self.file_hashes[filename] = _hash_file(filename)
 
         self.config.cache.set(CACHE_KEY, ujson.dumps({
             CACHE_VERSION_KEY: CACHE_VERSION,
@@ -163,7 +168,8 @@ class CoverageExclusionPlugin:
         old_file_data = self.previously_recorded_lines[item.nodeid]
 
         for key in old_file_data:
-            filename, start, end, content = self.line_cache.lookup(key)
+            filename_index, start, end, content = self.line_cache.lookup(key)
+            filename = self.line_cache.filenames[filename_index]
 
             old_hash = self.previous_file_hashes.get(filename)
             new_hash = self._get_current_file_hash(filename)
@@ -187,15 +193,19 @@ class CoverageExclusionPlugin:
 
     def _get_current_file_hash(self, filename):
         if filename not in self.file_hashes:
-            try:
-                with open(filename, 'rb') as f:
-                    self.file_hashes[filename] = hashlib \
-                        .new('sha1', f.read()) \
-                        .hexdigest()
-            except (FileNotFoundError, NotADirectoryError):
-                self.file_hashes[filename] = None
+            self.file_hashes[filename] = _hash_file(filename)
 
         return self.file_hashes[filename]
+
+
+def _hash_file(filename):
+    try:
+        with open(filename, 'rb') as f:
+            return hashlib \
+                .new('sha1', f.read()) \
+                .hexdigest()
+    except (FileNotFoundError, NotADirectoryError):
+        return None
 
 
 def pytest_configure(config):
