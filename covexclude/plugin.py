@@ -1,5 +1,6 @@
 import coverage
 import hashlib
+import ujson
 
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
@@ -16,7 +17,7 @@ class CoverageExclusionPlugin:
         self.config = config
         self.current_cov = None
 
-        cache_data = config.cache.get(CACHE_KEY, {})
+        cache_data = ujson.loads(config.cache.get(CACHE_KEY, '{}'))
         if cache_data.get(CACHE_VERSION_KEY) != CACHE_VERSION:
             cache_data = {}
 
@@ -40,6 +41,8 @@ class CoverageExclusionPlugin:
         )
 
         self.file_hashes = {}
+
+        self.file_contents_cache = {}
 
     def pytest_runtest_call(self, item):
         assert not self.current_cov
@@ -72,12 +75,12 @@ class CoverageExclusionPlugin:
         line_data.update(self.previously_recorded_lines)
         line_data.update(self.recorded_lines)
 
-        self.config.cache.set(CACHE_KEY, {
+        self.config.cache.set(CACHE_KEY, ujson.dumps({
             CACHE_VERSION_KEY: CACHE_VERSION,
             CACHE_RECORDED_LINES_KEY: line_data,
             CACHE_FAILED_TESTS: list(self.failed_tests),
             CACHE_FILE_HASHES: self.file_hashes,
-        })
+        }))
 
     def pytest_collection_modifyitems(self, session, config, items):
         to_keep = []
@@ -97,28 +100,32 @@ class CoverageExclusionPlugin:
         line_numbers = frozenset(line_numbers)
         added_previous_line = False
 
-        try:
-            with open(filename, 'r') as f:
-                for i, l in enumerate(f):
-                    if i + 1 in line_numbers:
-                        lines.append((i + 1, l))
-                        added_previous_line = True
+        if filename not in self.file_contents_cache:
+            try:
+                with open(filename, 'r') as f:
+                    self.file_contents_cache[filename] = f.readlines()
 
-                    elif added_previous_line and l.strip() == '':
-                        lines.append((i + 1, l))
-                        added_previous_line = True
+            except (FileNotFoundError, NotADirectoryError):
+                return []
 
-                    else:
-                        added_previous_line = False
+        all_lines = self.file_contents_cache[filename]
+        for i, l in enumerate(all_lines):
+            if i + 1 in line_numbers:
+                lines.append((i + 1, l))
+                added_previous_line = True
 
-                # Add EOF marker
-                if added_previous_line:
-                    lines.append((i + 1, ''))
+            elif added_previous_line and l.strip() == '':
+                lines.append((i + 1, l))
+                added_previous_line = True
 
-            return lines
+            else:
+                added_previous_line = False
 
-        except (FileNotFoundError, NotADirectoryError):
-            return []
+        # Add EOF marker
+        if added_previous_line:
+            lines.append((i + 1, ''))
+
+        return lines
 
     def _should_execute_item(self, item):
         if item.nodeid not in self.previously_recorded_lines:

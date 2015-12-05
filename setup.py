@@ -40,6 +40,7 @@ setup(
 
     install_requires=[
         'coverage~=4.0.0',
+        'ujson~=1.0',
     ],
 
     extras_require={
