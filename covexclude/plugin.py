@@ -1,10 +1,12 @@
 import coverage
+import hashlib
 
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
 CACHE_VERSION = 1
 CACHE_RECORDED_LINES_KEY = 'recorded_lines'
 CACHE_FAILED_TESTS = 'failed_tests'
+CACHE_FILE_HASHES = 'file_hashes'
 
 
 class CoverageExclusionPlugin:
@@ -32,6 +34,13 @@ class CoverageExclusionPlugin:
 
         self.failed_tests = set()
 
+        self.previous_file_hashes = cache_data.get(
+            CACHE_FILE_HASHES,
+            {}
+        )
+
+        self.file_hashes = {}
+
     def pytest_runtest_call(self, item):
         assert not self.current_cov
 
@@ -39,19 +48,20 @@ class CoverageExclusionPlugin:
         self.current_cov.start()
 
     def pytest_runtest_teardown(self, item, nextitem):
-        assert self.current_cov
+        if self.current_cov:
+            self.current_cov.stop()
+            data = self.current_cov.get_data()
+            self.current_cov = None
 
-        self.current_cov.stop()
-        data = self.current_cov.get_data()
-        self.current_cov = None
+            test_lines = {
+                filename: self._get_lines_in_file(
+                    filename,
+                    data.lines(filename))
+                for filename in data.measured_files()
+            }
 
-        test_lines = {
-            filename: self._get_lines_in_file(filename, data.lines(filename))
-            for filename in data.measured_files()
-        }
-
-        assert item.nodeid not in self.recorded_lines
-        self.recorded_lines[item.nodeid] = test_lines
+            assert item.nodeid not in self.recorded_lines
+            self.recorded_lines[item.nodeid] = test_lines
 
     def pytest_runtest_logreport(self, report):
         if report.failed and 'xfail' not in report.keywords:
@@ -66,6 +76,7 @@ class CoverageExclusionPlugin:
             CACHE_VERSION_KEY: CACHE_VERSION,
             CACHE_RECORDED_LINES_KEY: line_data,
             CACHE_FAILED_TESTS: list(self.failed_tests),
+            CACHE_FILE_HASHES: self.file_hashes,
         })
 
     def pytest_collection_modifyitems(self, session, config, items):
@@ -86,24 +97,28 @@ class CoverageExclusionPlugin:
         line_numbers = frozenset(line_numbers)
         added_previous_line = False
 
-        with open(filename, 'r') as f:
-            for i, l in enumerate(f):
-                if i + 1 in line_numbers:
-                    lines.append((i + 1, l))
-                    added_previous_line = True
+        try:
+            with open(filename, 'r') as f:
+                for i, l in enumerate(f):
+                    if i + 1 in line_numbers:
+                        lines.append((i + 1, l))
+                        added_previous_line = True
 
-                elif added_previous_line and l.strip() == '':
-                    lines.append((i + 1, l))
-                    added_previous_line = True
+                    elif added_previous_line and l.strip() == '':
+                        lines.append((i + 1, l))
+                        added_previous_line = True
 
-                else:
-                    added_previous_line = False
+                    else:
+                        added_previous_line = False
 
-            # Add EOF marker
-            if added_previous_line:
-                lines.append((i + 1, ''))
+                # Add EOF marker
+                if added_previous_line:
+                    lines.append((i + 1, ''))
 
-        return lines
+            return lines
+
+        except (FileNotFoundError, NotADirectoryError):
+            return []
 
     def _should_execute_item(self, item):
         if item.nodeid not in self.previously_recorded_lines:
@@ -115,6 +130,12 @@ class CoverageExclusionPlugin:
         old_file_data = self.previously_recorded_lines[item.nodeid]
 
         for filename, old_line_data in old_file_data.items():
+            old_hash = self.previous_file_hashes.get(filename)
+            new_hash = self._get_current_file_hash(filename)
+
+            if old_hash and new_hash and old_hash == new_hash:
+                continue
+
             line_numbers = [i for i, _ in old_line_data]
             new_line_data = self._get_lines_in_file(filename, line_numbers)
 
@@ -126,6 +147,18 @@ class CoverageExclusionPlugin:
                     return True
 
         return False
+
+    def _get_current_file_hash(self, filename):
+        if filename not in self.file_hashes:
+            try:
+                with open(filename, 'rb') as f:
+                    self.file_hashes[filename] = hashlib \
+                        .new('sha1', f.read()) \
+                        .hexdigest()
+            except (FileNotFoundError, NotADirectoryError):
+                self.file_hashes[filename] = None
+
+        return self.file_hashes[filename]
 
 
 def pytest_configure(config):
