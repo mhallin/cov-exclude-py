@@ -2,12 +2,15 @@ import coverage
 import hashlib
 import ujson
 
+from . import linecache
+
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 CACHE_RECORDED_LINES_KEY = 'recorded_lines'
 CACHE_FAILED_TESTS = 'failed_tests'
 CACHE_FILE_HASHES = 'file_hashes'
+CACHE_LINE_CACHE_KEY = 'line_cache'
 
 
 class CoverageExclusionPlugin:
@@ -20,6 +23,9 @@ class CoverageExclusionPlugin:
         cache_data = ujson.loads(config.cache.get(CACHE_KEY, '{}'))
         if cache_data.get(CACHE_VERSION_KEY) != CACHE_VERSION:
             cache_data = {}
+
+        self.line_cache = linecache.LineCache(
+            cache_data.get(CACHE_LINE_CACHE_KEY))
 
         self.previously_recorded_lines = cache_data.get(
             CACHE_RECORDED_LINES_KEY,
@@ -63,8 +69,16 @@ class CoverageExclusionPlugin:
                 for filename in data.measured_files()
             }
 
+            indices = []
+
+            for filename, ranges in test_lines.items():
+                for start, end, content in ranges:
+                    indices.append(
+                        self.line_cache.save_record(
+                            filename, start, end, content))
+
             assert item.nodeid not in self.recorded_lines
-            self.recorded_lines[item.nodeid] = test_lines
+            self.recorded_lines[item.nodeid] = indices
 
     def pytest_runtest_logreport(self, report):
         if report.failed and 'xfail' not in report.keywords:
@@ -80,6 +94,7 @@ class CoverageExclusionPlugin:
             CACHE_RECORDED_LINES_KEY: line_data,
             CACHE_FAILED_TESTS: list(self.failed_tests),
             CACHE_FILE_HASHES: self.file_hashes,
+            CACHE_LINE_CACHE_KEY: self.line_cache.to_json(),
         }))
 
     def pytest_collection_modifyitems(self, session, config, items):
@@ -124,7 +139,7 @@ class CoverageExclusionPlugin:
                 added_previous_line = True
 
             elif current_run_lines:
-                lines.append((run_start, i, _hash_lines(current_run_lines)))
+                lines.append((run_start, i, '\n'.join(current_run_lines)))
                 added_previous_line = False
                 current_run_lines = []
 
@@ -134,7 +149,7 @@ class CoverageExclusionPlugin:
         # Add EOF marker
         if added_previous_line:
             current_run_lines.append('')
-            lines.append((run_start, i + 1, _hash_lines(current_run_lines)))
+            lines.append((run_start, i + 1, '\n'.join(current_run_lines)))
 
         return lines
 
@@ -147,24 +162,26 @@ class CoverageExclusionPlugin:
 
         old_file_data = self.previously_recorded_lines[item.nodeid]
 
-        for filename, old_line_data in old_file_data.items():
+        for key in old_file_data:
+            filename, start, end, content = self.line_cache.lookup(key)
+
             old_hash = self.previous_file_hashes.get(filename)
             new_hash = self._get_current_file_hash(filename)
 
             if old_hash and new_hash and old_hash == new_hash:
                 continue
 
-            line_numbers = []
-            for s, e, _ in old_line_data:
-                line_numbers += list(range(s, e))
-            new_line_data = self._get_lines_in_file(filename, line_numbers)
+            new_line_data = self._get_lines_in_file(
+                filename,
+                range(start, end))
 
-            if len(old_line_data) != len(new_line_data):
+            if len(new_line_data) != 1:
                 return True
 
-            for (s1, e1, l1), (s2, e2, l2) in zip(old_line_data, new_line_data):
-                if s1 != s2 or l1 != l2:
-                    return True
+            _, _, expected_content = new_line_data[0]
+
+            if content != linecache.hash(expected_content):
+                return True
 
         return False
 
@@ -185,9 +202,3 @@ def pytest_configure(config):
     config.pluginmanager.register(
         CoverageExclusionPlugin(config),
         "coverage-exclusion")
-
-
-def _hash_lines(ls):
-    return hashlib \
-        .new('md5', '\n'.join(ls).encode('utf-8')) \
-        .hexdigest()
