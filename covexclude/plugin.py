@@ -4,7 +4,7 @@ import ujson
 
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 CACHE_RECORDED_LINES_KEY = 'recorded_lines'
 CACHE_FAILED_TESTS = 'failed_tests'
 CACHE_FILE_HASHES = 'file_hashes'
@@ -59,7 +59,7 @@ class CoverageExclusionPlugin:
             test_lines = {
                 filename: self._get_lines_in_file(
                     filename,
-                    data.lines(filename))
+                    [i - 1 for i in data.lines(filename)])
                 for filename in data.measured_files()
             }
 
@@ -109,21 +109,32 @@ class CoverageExclusionPlugin:
                 return []
 
         all_lines = self.file_contents_cache[filename]
+        run_start = 0
+        current_run_lines = []
         for i, l in enumerate(all_lines):
-            if i + 1 in line_numbers:
-                lines.append((i + 1, l))
+            l = l[:-1]
+            if i in line_numbers:
+                if not added_previous_line:
+                    run_start = i
+                current_run_lines.append(l)
                 added_previous_line = True
 
             elif added_previous_line and l.strip() == '':
-                lines.append((i + 1, l))
+                current_run_lines.append(l)
                 added_previous_line = True
+
+            elif current_run_lines:
+                lines.append((run_start, i, _hash_lines(current_run_lines)))
+                added_previous_line = False
+                current_run_lines = []
 
             else:
                 added_previous_line = False
 
         # Add EOF marker
         if added_previous_line:
-            lines.append((i + 1, ''))
+            current_run_lines.append('')
+            lines.append((run_start, i + 1, _hash_lines(current_run_lines)))
 
         return lines
 
@@ -143,14 +154,16 @@ class CoverageExclusionPlugin:
             if old_hash and new_hash and old_hash == new_hash:
                 continue
 
-            line_numbers = [i for i, _ in old_line_data]
+            line_numbers = []
+            for s, e, _ in old_line_data:
+                line_numbers += list(range(s, e))
             new_line_data = self._get_lines_in_file(filename, line_numbers)
 
             if len(old_line_data) != len(new_line_data):
                 return True
 
-            for (i1, l1), (i2, l2) in zip(old_line_data, new_line_data):
-                if i1 != i2 or l1 != l2:
+            for (s1, e1, l1), (s2, e2, l2) in zip(old_line_data, new_line_data):
+                if s1 != s2 or l1 != l2:
                     return True
 
         return False
@@ -172,3 +185,9 @@ def pytest_configure(config):
     config.pluginmanager.register(
         CoverageExclusionPlugin(config),
         "coverage-exclusion")
+
+
+def _hash_lines(ls):
+    return hashlib \
+        .new('md5', '\n'.join(ls).encode('utf-8')) \
+        .hexdigest()
