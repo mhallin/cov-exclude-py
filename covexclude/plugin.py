@@ -198,6 +198,9 @@ class CoverageExclusionPlugin:
         if item.nodeid in self.previously_failed_tests:
             return True
 
+        if item.get_marker('external_dependencies'):
+            return True
+
         old_file_data = self.previously_recorded_lines[item.nodeid]
 
         for key in old_file_data:
