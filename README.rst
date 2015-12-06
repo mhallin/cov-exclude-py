@@ -5,6 +5,9 @@
 .. image:: https://api.travis-ci.org/mhallin/cov-exclude-py.svg?branch=master
    :target: https://travis-ci.org/mhallin/cov-exclude-py
 
+.. image:: https://img.shields.io/pypi/v/cov-exclude.svg
+   :target: https://pypi.python.org/pypi/cov-exclude
+
 Coverage-based test exclusion plugin for pytest_. By looking at which
 lines are executed by each test, the next test run can be sped up by
 *not* executing the tests where no source files have changed.
