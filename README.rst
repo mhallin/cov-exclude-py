@@ -27,7 +27,7 @@ Install with pip:
 
 ``cov-exclude`` requires Pytest 2.8 or later. It is compatible with
 Python 2.7, 3.3, 3.4, 3.5, as well as PyPy. It does *not* work on PyPy
-3 due to some unknown bug with the coverage data generated.
+3 due to an unknown bug with the coverage data generated.
 
 
 Usage
@@ -44,7 +44,7 @@ and the suite will take a *little bit* longer than usual:
 
    # Test output...
 
-   ================ MANY passed in LOTS seconds =================
+   ================ MANY passed in MANY seconds =================
 
 Now when you re-run the test suite, all tests should have been
 excluded:
@@ -58,6 +58,9 @@ excluded:
    # Test output...
 
    =============== MANY deselected in FEW seconds ===============
+
+If a test fails, it will re-run even if nothing changed in order to
+preserve the general failure status of the test suite.
 
 
 Forcing individual test inclusion
@@ -88,4 +91,16 @@ have two options: either disable the plugin, or clear pytest's cache:
    $ py.test --cache-clear  # Clear pytest's cache
 
 
+Compatibility
+=============
+
+As stated earlier, this plugin requires Pytest 2.8 or later since it
+depends on the new cache module.
+
+While PyPy is supported, the ujson_ library used for faster
+serialization/deserialization is not available, so a fallback to the
+default JSON implementation is used instead. Because of this, the
+tests might actually run *slower* with this plugin under PyPy.
+
 .. _pytest: http://pytest.org
+.. _ujson: https://pypi.python.org/pypi/ujson
