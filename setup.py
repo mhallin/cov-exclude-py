@@ -44,13 +44,13 @@ setup(
     },
 
     install_requires=[
-        'coverage~=4.0.0',
-        'ujson~=1.0',
+        'coverage>=4.0.0,<5.0.0',
+        'ujson>=1.0,<2.0',
     ],
 
     extras_require={
         'dev': [
-            'pytest~=2.8.0',
+            'pytest>=2.8.0,<2.9.0',
         ],
         'dist': [
             'twine',

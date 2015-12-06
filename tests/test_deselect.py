@@ -25,8 +25,9 @@ def test_deselect(sequence, tmpdir):
             f = tmpdir.join('test.py')
             f.write(s.read())
 
-        p = subprocess.run(['py.test', 'test.py'],
-                           cwd=str(tmpdir),
-                           stdout=subprocess.PIPE)
+        p = subprocess.Popen(['py.test', 'test.py'],
+                             cwd=str(tmpdir),
+                             stdout=subprocess.PIPE)
+        stdout, _ = p.communicate()
 
-        assert expected in p.stdout
+        assert expected in stdout
