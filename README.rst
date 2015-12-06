@@ -26,7 +26,8 @@ Install with pip:
    $ pip install cov-exclude
 
 ``cov-exclude`` requires Pytest 2.8 or later. It is compatible with
-Python 2.7, 3.3, 3.4, 3.5, as well as PyPy and PyPy3.
+Python 2.7, 3.3, 3.4, 3.5, as well as PyPy. It does *not* work on PyPy
+3 due to some unknown bug with the coverage data generated.
 
 
 Usage

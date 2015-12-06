@@ -74,6 +74,8 @@ class CoverageExclusionPlugin:
             data.update(item._extra_cov_data)
             self.current_cov = None
 
+            _debug_coverage_data(data)
+
             indices = []
 
             non_measured_lines = {}
@@ -207,6 +209,8 @@ class CoverageExclusionPlugin:
             current_run_lines.append('')
             lines.append((run_start, i + 1, '\n'.join(current_run_lines)))
 
+        _debug_lines_in_file(filename, lines)
+
         return lines
 
     def _should_execute_item(self, item):
@@ -274,7 +278,14 @@ def pytest_configure(config):
 
 def _debug_coverage_data(data):
     for filename in data.measured_files():
-        if 'cov-exclude-py' not in filename:
+        if 'site-packages' in filename:
             continue
 
         print('{}: {}'.format(filename, data.lines(filename)))
+
+
+def _debug_lines_in_file(filename, data):
+    if 'site-packages' in filename:
+        return
+
+    print('{}: {}'.format(filename, data))
