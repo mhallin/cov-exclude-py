@@ -50,6 +50,8 @@ class CoverageExclusionPlugin:
 
         self.file_contents_cache = {}
 
+        self.known_identical_items = set()
+
     def pytest_runtest_call(self, item):
         assert not self.current_cov
 
@@ -144,6 +146,8 @@ class CoverageExclusionPlugin:
         items[:] = to_keep
         config.hook.pytest_deselected(items=to_skip)
 
+        self.known_identical_items = None
+
     def _get_lines_in_file(self, filename, line_numbers):
         lines = []
         line_numbers = frozenset(line_numbers)
@@ -197,6 +201,9 @@ class CoverageExclusionPlugin:
         old_file_data = self.previously_recorded_lines[item.nodeid]
 
         for key in old_file_data:
+            if key in self.known_identical_items:
+                continue
+
             filename_index, start, end, content = self.line_cache.lookup(key)
             filename = self.line_cache.filenames[filename_index]
 
@@ -204,6 +211,7 @@ class CoverageExclusionPlugin:
             new_hash = self._get_current_file_hash(filename)
 
             if old_hash and new_hash and old_hash == new_hash:
+                self.known_identical_items.add(key)
                 continue
 
             new_line_data = self._get_lines_in_file(
