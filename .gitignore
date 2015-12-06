@@ -4,3 +4,5 @@
 /cov_exclude.egg-info/
 /.tox
 __pycache__
+
+*.pyc

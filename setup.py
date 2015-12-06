@@ -1,4 +1,5 @@
 import os.path
+import platform
 
 from setuptools import setup, find_packages
 
@@ -17,6 +18,15 @@ def read_version():
 with open(os.path.join(HERE, 'README.rst')) as fp:
     long_description = fp.read()
 
+
+install_requires = [
+    'coverage>=4.0.0,<5.0.0',
+]
+
+if platform.python_implementation() != 'PyPy':
+    install_requires += [
+        'ujson>=1.0,<2.0',
+    ]
 
 setup(
     name='cov-exclude',
@@ -43,10 +53,7 @@ setup(
         ],
     },
 
-    install_requires=[
-        'coverage>=4.0.0,<5.0.0',
-        'ujson>=1.0,<2.0',
-    ],
+    install_requires=install_requires,
 
     extras_require={
         'dev': [

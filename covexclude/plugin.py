@@ -1,8 +1,17 @@
 import coverage
 import hashlib
-import ujson
+
+try:
+    import ujson
+except ImportError:
+    import json as ujson
 
 from . import linecache
+
+try:
+    IO_ERRORS = (FileNotFoundError, NotADirectoryError)
+except NameError:
+    IO_ERRORS = IOError
 
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
@@ -158,7 +167,7 @@ class CoverageExclusionPlugin:
                 with open(filename, 'r') as f:
                     self.file_contents_cache[filename] = f.readlines()
 
-            except (FileNotFoundError, NotADirectoryError):
+            except IO_ERRORS:
                 return []
 
         all_lines = self.file_contents_cache[filename]
@@ -244,7 +253,7 @@ def _hash_file(filename):
             return hashlib \
                 .new('sha1', f.read()) \
                 .hexdigest()
-    except (FileNotFoundError, NotADirectoryError):
+    except IO_ERRORS:
         return None
 
 
