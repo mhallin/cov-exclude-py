@@ -1,24 +1,19 @@
 import coverage
-import hashlib
 
 try:
     import ujson
 except ImportError:
     import json as ujson
 
-from . import linecache
-
-try:
-    IO_ERRORS = (FileNotFoundError, NotADirectoryError)
-except NameError:
-    IO_ERRORS = IOError
+from . import linecache, filehashcache
+from .compat import IO_ERRORS
 
 CACHE_KEY = 'cache/coverage-by-test'
 CACHE_VERSION_KEY = 'version'
 CACHE_VERSION = 4
 CACHE_RECORDED_LINES_KEY = 'recorded_lines'
 CACHE_FAILED_TESTS = 'failed_tests'
-CACHE_FILE_HASHES = 'file_hashes'
+CACHE_FILE_HASH_CACHE_KEY = 'file_hashes'
 CACHE_LINE_CACHE_KEY = 'line_cache'
 
 
@@ -32,6 +27,9 @@ class CoverageExclusionPlugin:
         cache_data = ujson.loads(config.cache.get(CACHE_KEY, '{}'))
         if cache_data.get(CACHE_VERSION_KEY) != CACHE_VERSION:
             cache_data = {}
+
+        self.file_hash_cache = filehashcache.FileHashCache(
+            cache_data.get(CACHE_FILE_HASH_CACHE_KEY))
 
         self.line_cache = linecache.LineCache(
             cache_data.get(CACHE_LINE_CACHE_KEY))
@@ -50,13 +48,6 @@ class CoverageExclusionPlugin:
 
         self.failed_tests = set()
 
-        self.previous_file_hashes = cache_data.get(
-            CACHE_FILE_HASHES,
-            {}
-        )
-
-        self.file_hashes = {}
-
         self.file_contents_cache = {}
 
         self.known_identical_items = set()
@@ -73,8 +64,6 @@ class CoverageExclusionPlugin:
             data = self.current_cov.get_data()
             data.update(item._extra_cov_data)
             self.current_cov = None
-
-            _debug_coverage_data(data)
 
             indices = []
 
@@ -133,15 +122,13 @@ class CoverageExclusionPlugin:
         line_data.update(self.previously_recorded_lines)
         line_data.update(self.recorded_lines)
 
-        for filename in self.line_cache.filenames:
-            if filename not in self.file_hashes:
-                self.file_hashes[filename] = _hash_file(filename)
+        self.file_hash_cache.hash_missing_files(self.line_cache.filenames)
 
         self.config.cache.set(CACHE_KEY, ujson.dumps({
             CACHE_VERSION_KEY: CACHE_VERSION,
             CACHE_RECORDED_LINES_KEY: line_data,
             CACHE_FAILED_TESTS: list(self.failed_tests),
-            CACHE_FILE_HASHES: self.file_hashes,
+            CACHE_FILE_HASH_CACHE_KEY: self.file_hash_cache.to_json(),
             CACHE_LINE_CACHE_KEY: self.line_cache.to_json(),
         }))
 
@@ -209,8 +196,6 @@ class CoverageExclusionPlugin:
             current_run_lines.append('')
             lines.append((run_start, i + 1, '\n'.join(current_run_lines)))
 
-        _debug_lines_in_file(filename, lines)
-
         return lines
 
     def _should_execute_item(self, item):
@@ -232,10 +217,7 @@ class CoverageExclusionPlugin:
             filename_index, start, end, content = self.line_cache.lookup(key)
             filename = self.line_cache.filenames[filename_index]
 
-            old_hash = self.previous_file_hashes.get(filename)
-            new_hash = self._get_current_file_hash(filename)
-
-            if old_hash and new_hash and old_hash == new_hash:
+            if self.file_hash_cache.is_identical(filename):
                 self.known_identical_items.add(key)
                 continue
 
@@ -252,22 +234,6 @@ class CoverageExclusionPlugin:
                 return True
 
         return False
-
-    def _get_current_file_hash(self, filename):
-        if filename not in self.file_hashes:
-            self.file_hashes[filename] = _hash_file(filename)
-
-        return self.file_hashes[filename]
-
-
-def _hash_file(filename):
-    try:
-        with open(filename, 'rb') as f:
-            return hashlib \
-                .new('sha1', f.read()) \
-                .hexdigest()
-    except IO_ERRORS:
-        return None
 
 
 def pytest_configure(config):
