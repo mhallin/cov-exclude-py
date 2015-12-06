@@ -14,10 +14,15 @@ def read_version():
     return about_data['__version__']
 
 
+with open(os.path.join(HERE, 'README.rst')) as fp:
+    long_description = fp.read()
+
+
 setup(
     name='cov-exclude',
     version=read_version(),
     description='Pytest plugin for excluding tests based on coverage data',
+    long_description=long_description,
 
     author='Magnus Hallin',
     author_email='mhallin@fastmail.com',
@@ -47,5 +52,29 @@ setup(
         'dev': [
             'pytest~=2.8.0',
         ],
+        'dist': [
+            'twine',
+            'wheel',
+        ],
     },
+
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: POSIX',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3.5',
+        'Topic :: Software Development :: Testing',
+    ],
+
+    keywords=[
+        'cover',
+        'coverage',
+        'pytest',
+        'py.test',
+        'performance',
+        'speed',
+    ]
 )
