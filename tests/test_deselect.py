@@ -13,7 +13,13 @@ def run_test_file(filename, tmpdir):
         f = tmpdir.join('test.py')
         f.write(s.read())
 
-    p = subprocess.Popen(['py.test', 'test.py'],
+    if tmpdir.join('__pycache__').check():
+        tmpdir.join('__pycache__').remove()
+
+    if tmpdir.join('test.pyc').check():
+        tmpdir.join('test.pyc').remove()
+
+    p = subprocess.Popen(['py.test', '-v', 'test.py'],
                          cwd=str(tmpdir),
                          stdout=subprocess.PIPE)
     stdout, _ = p.communicate()
@@ -51,9 +57,16 @@ def run_test_file(filename, tmpdir):
     (('fixture01.py', b'1 passed'),
      ('fixture02.py', b'1 failed')),
 
-    # Changes made to parametrized definitions should be picked up
+    # Changes made to parametrized definitions should be picked up,
+    # but we don't really care about how many of the parameters were
+    # selected/deselected.
     (('parametrize01.py', b'3 passed'),
-     ('parametrize02.py', b'1 failed, 2 deselected')),
+     ('parametrize02.py', b'1 failed')),
+
+    # In order to not depend on the *name* of a parameterized test,
+    # run the parametrized tests with more intricate data structures
+    (('parametrize03.py', b'3 passed'),
+     ('parametrize04.py', b'1 failed')),
 ])
 def test_run_changes(sequence, tmpdir):
     """Running each sequence of files should provide the expected output
