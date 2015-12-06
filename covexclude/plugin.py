@@ -52,7 +52,7 @@ class CoverageExclusionPlugin:
 
         self.known_identical_items = set()
 
-    def pytest_runtest_call(self, item):
+    def pytest_runtest_setup(self, item):
         assert not self.current_cov
 
         self.current_cov = coverage.Coverage()
