@@ -71,6 +71,7 @@ class CoverageExclusionPlugin:
         if self.current_cov:
             self.current_cov.stop()
             data = self.current_cov.get_data()
+            data.update(item._extra_cov_data)
             self.current_cov = None
 
             indices = []
@@ -156,6 +157,14 @@ class CoverageExclusionPlugin:
         config.hook.pytest_deselected(items=to_skip)
 
         self.known_identical_items = None
+
+    def pytest_collectstart(self, collector):
+        self.collect_cov = coverage.Coverage()
+        self.collect_cov.start()
+
+    def pytest_itemcollected(self, item):
+        self.collect_cov.stop()
+        item._extra_cov_data = self.collect_cov.get_data()
 
     def _get_lines_in_file(self, filename, line_numbers):
         lines = []
@@ -261,3 +270,11 @@ def pytest_configure(config):
     config.pluginmanager.register(
         CoverageExclusionPlugin(config),
         "coverage-exclusion")
+
+
+def _debug_coverage_data(data):
+    for filename in data.measured_files():
+        if 'cov-exclude-py' not in filename:
+            continue
+
+        print('{}: {}'.format(filename, data.lines(filename)))
