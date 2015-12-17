@@ -81,12 +81,11 @@ files were changed:
 Known bugs
 ----------
 
-* Changes to files during pytest's collection phase is complete will
-  be ignored. Test files and their dependencies are scanned as soon as
+* Changes to files during pytest's collection phase will be
+  ignored. Test files and their dependencies are scanned as soon as
   possible *after* the test collection is complete.
 
   There is a test case marked ``xfail`` that highlights this issue.
-
 
 
 Running the whole test suite
