@@ -1,5 +1,7 @@
 from . import linecache
-from .coverageprocessor import determine_non_measured_lines, get_lines_in_file
+from .coverageprocessor import (add_to_cache,
+                                determine_non_measured_lines,
+                                get_lines_in_file)
 
 FAILED_TESTS_KEY = 'failed_tests'
 RECORDED_LINES_KEY = 'recorded_lines'
@@ -24,6 +26,12 @@ class Driver:
 
             self.previously_recorded_lines = initial_data.get(
                 RECORDED_LINES_KEY, {})
+
+    def cache_files_from_coverage(self, coverage_data):
+        for filename in coverage_data.measured_files():
+            add_to_cache(filename, self.file_contents_cache)
+
+        self.file_hash_cache.hash_missing_files(coverage_data.measured_files())
 
     def report_test_coverage(self, item_id, coverage_data):
         indices, non_measured_lines = determine_non_measured_lines(

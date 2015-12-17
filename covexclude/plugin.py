@@ -94,6 +94,8 @@ class CoverageExclusionPlugin:
         self.collect_cov.stop()
         item._extra_cov_data = self.collect_cov.get_data()
 
+        self.driver.cache_files_from_coverage(self.collect_cov.get_data())
+
     def _should_execute_item(self, item, known_identical_items):
         if item.get_marker('external_dependencies'):
             return True

@@ -1,5 +1,6 @@
 import subprocess
 import os.path
+import time
 
 import pytest
 
@@ -8,7 +9,7 @@ def from_here(*args):
     return os.path.join(os.path.dirname(__file__), *args)
 
 
-def run_test_file(filename, tmpdir):
+def write_test_files(filename, tmpdir):
     with open(from_here('files', filename), 'r') as s:
         f = tmpdir.join('test.py')
         f.write(s.read())
@@ -19,9 +20,20 @@ def run_test_file(filename, tmpdir):
     if tmpdir.join('test.pyc').check():
         tmpdir.join('test.pyc').remove()
 
+
+def start_test_process(filename, tmpdir):
+    write_test_files(filename, tmpdir)
+
     p = subprocess.Popen(['py.test', '-v', 'test.py'],
                          cwd=str(tmpdir),
                          stdout=subprocess.PIPE)
+
+    return p
+
+
+def run_test_file(filename, tmpdir):
+    p = start_test_process(filename, tmpdir)
+
     stdout, _ = p.communicate()
 
     return stdout
@@ -103,3 +115,28 @@ def test_deselect_nochange(filename, n_tests, tmpdir):
 
     stdout_deselect = run_test_file(filename, tmpdir)
     assert expect_deselect in stdout_deselect
+
+
+@pytest.mark.external_dependencies
+def test_alter_file_during_test(tmpdir):
+    """Altering the test file during test execution should still mark the
+    file as changed"""
+
+    assert not tmpdir.join('.cache').check()
+
+    # Start slow test asynchronously
+    first_process = start_test_process('alter_test01.py', tmpdir)
+
+    # Wait for test to start, then replace test files with new ones
+    time.sleep(1)
+    write_test_files('alter_test02.py', tmpdir)
+
+    # Read output to verify that the test was run
+    stdout, _ = first_process.communicate()
+    assert b'1 passed' in stdout
+
+    # Start a new test run with the altered file
+    second_run = run_test_file('alter_test02.py', tmpdir)
+
+    # The second run should fail
+    assert b'1 failed' in second_run
