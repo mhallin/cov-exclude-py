@@ -1,7 +1,7 @@
 /build
 /dist
 /.cache
-/cov_exclude.egg-info/
+/pytest_cov_exclude.egg-info/
 /.tox
 __pycache__
 

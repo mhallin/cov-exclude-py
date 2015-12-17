@@ -29,7 +29,7 @@ if platform.python_implementation() != 'PyPy':
     ]
 
 setup(
-    name='cov-exclude',
+    name='pytest-cov-exclude',
     version=read_version(),
     description='Pytest plugin for excluding tests based on coverage data',
     long_description=long_description,
