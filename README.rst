@@ -1,12 +1,12 @@
-===========================
- Pytest Coverage Exclusion
-===========================
+======================================
+ Pytest Coverage-based Test Exclusion
+======================================
 
 .. image:: https://api.travis-ci.org/mhallin/cov-exclude-py.svg?branch=master
    :target: https://travis-ci.org/mhallin/cov-exclude-py
 
-.. image:: https://img.shields.io/pypi/v/cov-exclude.svg
-   :target: https://pypi.python.org/pypi/cov-exclude
+.. image:: https://img.shields.io/pypi/v/pytest-cov-exclude.svg
+   :target: https://pypi.python.org/pypi/pytest-cov-exclude
 
 Coverage-based test exclusion plugin for pytest_. By looking at which
 lines are executed by each test, the next test run can be sped up by
@@ -23,9 +23,9 @@ Install with pip:
 
 .. code-block:: text
 
-   $ pip install cov-exclude
+   $ pip install pytest-cov-exclude
 
-``cov-exclude`` requires Pytest 2.8 or later. It is compatible with
+``pytest-cov-exclude`` requires Pytest 2.8 or later. It is compatible with
 Python 2.7, 3.3, 3.4, 3.5, as well as PyPy. It does *not* work on PyPy
 3 due to an unknown bug with the coverage data generated.
 
