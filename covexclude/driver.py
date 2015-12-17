@@ -1,4 +1,5 @@
 from . import linecache
+from .compat import IO_ERRORS
 from .coverageprocessor import (add_to_cache,
                                 determine_non_measured_lines,
                                 get_lines_in_file)
@@ -29,7 +30,10 @@ class Driver:
 
     def cache_files_from_coverage(self, coverage_data):
         for filename in coverage_data.measured_files():
-            add_to_cache(filename, self.file_contents_cache)
+            try:
+                add_to_cache(filename, self.file_contents_cache)
+            except IO_ERRORS:
+                continue
 
         self.file_hash_cache.hash_missing_files(coverage_data.measured_files())
 

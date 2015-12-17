@@ -48,12 +48,8 @@ def determine_non_measured_lines(coverage_data, line_cache):
 
 def add_to_cache(filename, file_contents_cache):
     if filename not in file_contents_cache:
-        try:
-            with open(filename, 'r') as f:
-                file_contents_cache[filename] = f.readlines()
-
-        except IO_ERRORS:
-            return []
+        with open(filename, 'r') as f:
+            file_contents_cache[filename] = f.readlines()
 
 
 def get_lines_in_file(filename, line_numbers, file_contents_cache):
@@ -83,7 +79,10 @@ def get_lines_in_file(filename, line_numbers, file_contents_cache):
     line_numbers = frozenset(line_numbers)
     added_previous_line = False
 
-    add_to_cache(filename, file_contents_cache)
+    try:
+        add_to_cache(filename, file_contents_cache)
+    except IO_ERRORS:
+        return []
 
     all_lines = file_contents_cache[filename]
     run_start = 0
