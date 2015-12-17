@@ -118,25 +118,33 @@ def test_deselect_nochange(filename, n_tests, tmpdir):
 
 
 @pytest.mark.external_dependencies
-def test_alter_file_during_test(tmpdir):
+@pytest.mark.parametrize('first_filename,second_filename', [
+    ('alter_test01.py', 'alter_test02.py'),
+
+    # alter_test03/04 alters the test during the collection phase,
+    # which currently is a known bug in cov-exclude. Expect this test
+    # case to fail.
+    pytest.mark.xfail(('alter_test03.py', 'alter_test04.py')),
+])
+def test_alter_file_during_test(first_filename, second_filename, tmpdir):
     """Altering the test file during test execution should still mark the
     file as changed"""
 
     assert not tmpdir.join('.cache').check()
 
     # Start slow test asynchronously
-    first_process = start_test_process('alter_test01.py', tmpdir)
+    first_process = start_test_process(first_filename, tmpdir)
 
     # Wait for test to start, then replace test files with new ones
     time.sleep(1)
-    write_test_files('alter_test02.py', tmpdir)
+    write_test_files(second_filename, tmpdir)
 
     # Read output to verify that the test was run
     stdout, _ = first_process.communicate()
     assert b'1 passed' in stdout
 
     # Start a new test run with the altered file
-    second_run = run_test_file('alter_test02.py', tmpdir)
+    second_run = run_test_file(second_filename, tmpdir)
 
     # The second run should fail
     assert b'1 failed' in second_run

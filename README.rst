@@ -78,6 +78,17 @@ files were changed:
        # Run tests from external data files
 
 
+Known bugs
+----------
+
+* Changes to files during pytest's collection phase is complete will
+  be ignored. Test files and their dependencies are scanned as soon as
+  possible *after* the test collection is complete.
+
+  There is a test case marked ``xfail`` that highlights this issue.
+
+
+
 Running the whole test suite
 ----------------------------
 
