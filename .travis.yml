@@ -4,7 +4,7 @@ python:
   - 3.3
   - 3.4
   - 3.5
-  - pypy
+#  - pypy # FIXME: RPython error in PyPy at the moment
 
 install:
   - pip install -U pip
