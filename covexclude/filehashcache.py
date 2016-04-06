@@ -1,4 +1,5 @@
 import hashlib
+import os.path
 
 from .compat import IO_ERRORS
 
@@ -10,7 +11,10 @@ class FileHashCache:
         self.previous_file_hashes = {}
 
         if initial_data:
-            self.previous_file_hashes = initial_data
+            self.previous_file_hashes = {
+                os.path.abspath(f): h
+                for f, h in initial_data.items()
+            }
 
     def hash_missing_files(self, filenames):
         self.file_hashes.update({
@@ -29,7 +33,10 @@ class FileHashCache:
         return old_hash and new_hash and old_hash == new_hash
 
     def to_json(self):
-        return self.file_hashes
+        return {
+            os.path.relpath(f): h
+            for f, h in self.file_hashes.items()
+        }
 
 
 def _hash_file(filename):

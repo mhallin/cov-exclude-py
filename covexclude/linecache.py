@@ -1,4 +1,5 @@
 import hashlib
+import os.path
 
 FILENAMES_KEY = 'filenames'
 RECORDED_RANGES_KEY = 'recorded_ranges'
@@ -19,7 +20,7 @@ class LineCache:
         self.range_indices = {}
 
         if initial_data:
-            self.filenames = initial_data[FILENAMES_KEY]
+            self.filenames = [os.path.abspath(f) for f in initial_data[FILENAMES_KEY]]
             self.recorded_ranges = initial_data[RECORDED_RANGES_KEY]
 
             for i, f in enumerate(self.filenames):
@@ -67,7 +68,7 @@ class LineCache:
 
     def to_json(self):
         return {
-            FILENAMES_KEY: self.filenames,
+            FILENAMES_KEY: [os.path.relpath(f) for f in self.filenames],
             RECORDED_RANGES_KEY: self.recorded_ranges,
         }
 
