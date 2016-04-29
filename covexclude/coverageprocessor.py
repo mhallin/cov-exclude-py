@@ -1,3 +1,5 @@
+import codecs
+
 from .compat import IO_ERRORS
 
 
@@ -48,12 +50,19 @@ def determine_non_measured_lines(coverage_data, line_cache):
 
 def add_to_cache(filename, file_contents_cache):
     if filename not in file_contents_cache:
+        successful = False
+
         for encoding in ['utf-8', 'latin_1']:
             try:
-                with open(filename, 'r') as f:
+                with codecs.open(filename, 'r', encoding=encoding) as f:
                     file_contents_cache[filename] = f.readlines()
+                    successful = True
+                    break
             except UnicodeDecodeError:
                 pass
+
+        if not successful:
+            file_contents_cache[filename] = []
 
 
 def get_lines_in_file(filename, line_numbers, file_contents_cache):
